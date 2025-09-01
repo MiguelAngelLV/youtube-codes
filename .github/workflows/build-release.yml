@@ -47,9 +47,12 @@ jobs:
       - name: Find version
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="manual-${GITHUB_SHA:0:7}"
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-
       - name: Rename artifact with version
         run: |
           mkdir artifacts
