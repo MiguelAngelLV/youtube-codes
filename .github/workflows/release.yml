@@ -1,11 +1,20 @@
-name: Build Compose App
-permissions:
-  contents: write
+name: Build & Release Compose App
 
 on:
+  # Se dispara cuando haces push a un tag
   push:
     tags:
       - 'v*'
+  # Permite lanzamiento manual
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to release'
+        required: true
+        default: 'main'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -25,6 +34,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -37,22 +48,20 @@ jobs:
 
       - name: Find version
         id: version
-        shell: bash
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Rename artifact with version
-        shell: bash
         run: |
           mkdir artifacts
           FILE=$(find composeApp/build/compose/binaries -type f -name "*.${{ matrix.artifact_ext }}" | head -n 1)
-          cp "$FILE" "artifacts/youtube-codes-${{ env.VERSION }}-${{ runner.os }}.${{ matrix.artifact_ext }}"
+          cp "$FILE" "artifacts/myapp-${{ env.VERSION }}-${{ runner.os }}.${{ matrix.artifact_ext }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: youtube-codes-${{ env.VERSION }}-${{ runner.os }}
+          name: myapp-${{ env.VERSION }}-${{ runner.os }}
           path: artifacts/*
 
   release:
@@ -65,9 +74,12 @@ jobs:
           merge-multiple: true
           path: ./dist
 
-      - name: Create Release
+      - name: Create Pre-release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ github.event.inputs.branch != 'main' }}
+          generate_release_notes: true
           files: ./dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
