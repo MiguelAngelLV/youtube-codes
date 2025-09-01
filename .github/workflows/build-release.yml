@@ -1,11 +1,9 @@
 name: Build & Release Compose App
 
 on:
-  # Se dispara cuando haces push a un tag
   push:
     tags:
       - 'v*'
-  # Permite lanzamiento manual
   workflow_dispatch:
     inputs:
       branch:
