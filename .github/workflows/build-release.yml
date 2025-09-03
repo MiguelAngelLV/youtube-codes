@@ -64,7 +64,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
-          prerelease: ${{ github.event.inputs.boolean }}
+          prerelease: ${{ github.event.inputs.boolean  || 'false' }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
