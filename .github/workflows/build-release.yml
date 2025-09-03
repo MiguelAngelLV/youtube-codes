@@ -2,8 +2,8 @@ name: Build & Release Compose App
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       branch:
@@ -15,7 +15,58 @@ permissions:
   contents: write
 
 jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      release_version: ${{ steps.determine_version.outputs.version }}
+    steps:
+      - name: Checkout (full history & tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine release version (YYYY.MM.increment)
+        id: determine_version
+        run: |
+          YEAR=$(date +'%Y')
+          MONTH=$(date +'%m')
+          PREFIX="${YEAR}.${MONTH}"
+
+          echo "Checking existing releases with prefix $PREFIX..."
+
+          # Obtener todas las versiones existentes de GitHub Releases
+          releases=$(gh release list --limit 1000 --json tagName -q '.[].tagName' || true)
+
+          # Filtrar las que coincidan con el prefijo actual
+          latest=$(echo "$releases" | grep "^${PREFIX}\." | sort -V | tail -n1 || true)
+
+          if [ -z "$latest" ]; then
+            NEXT="${PREFIX}.1"
+          else
+            num=$(echo "$latest" | awk -F. '{print $3}')
+            NEXT="${PREFIX}.$((num+1))"
+          fi
+
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "RELEASE_VERSION=$NEXT" >> $GITHUB_ENV
+          echo "Determined version: $NEXT"
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_VERSION }}
+          prerelease: ${{ github.event.inputs.branch != 'main' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: create_release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -31,9 +82,11 @@ jobs:
             artifact_ext: dmg
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code (branch to release)
+        uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref_name }}
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -41,46 +94,34 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Cache Gradle packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ matrix.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ matrix.os }}-
+
       - name: Build
         run: ./gradlew ${{ matrix.gradle_task }}
 
-      - name: Find version
-        id: version
+      - name: Find artifact
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/}"
-          else
-            VERSION="manual-${GITHUB_SHA:0:7}"
-          fi
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Rename artifact with version
-        run: |
-          mkdir artifacts
+          mkdir -p artifacts
           FILE=$(find composeApp/build/compose/binaries -type f -name "*.${{ matrix.artifact_ext }}" | head -n 1)
-          cp "$FILE" "artifacts/myapp-${{ env.VERSION }}-${{ runner.os }}.${{ matrix.artifact_ext }}"
+          if [ -z "$FILE" ]; then
+            echo "No artifact found for ext ${{ matrix.artifact_ext }}"
+            exit 1
+          fi
+          cp "$FILE" "artifacts/youtube-codes-${{ needs.create_release.outputs.release_version }}-${{ matrix.os }}.${{ matrix.artifact_ext }}"
+          ls -la artifacts
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: myapp-${{ env.VERSION }}-${{ runner.os }}
-          path: artifacts/*
-
-  release:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-          path: ./dist
-
-      - name: Create Pre-release
+      - name: Upload artifact to the release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          prerelease: ${{ github.event.inputs.branch != 'main' }}
-          generate_release_notes: true
-          files: ./dist/*
+          files: artifacts/*
+          tag_name: ${{ needs.create_release.outputs.release_id }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
