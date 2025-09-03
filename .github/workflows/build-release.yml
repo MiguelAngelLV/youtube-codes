@@ -1,9 +1,6 @@
 name: Build & Release Compose App
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       branch:
@@ -35,7 +32,7 @@ jobs:
         run: |
           YEAR=$(date +'%Y')
           MONTH=$(date +'%m')
-          PREFIX="${YEAR}.${MONTH}"
+          PREFIX="v${YEAR}.${MONTH}"
 
           echo "Checking existing releases with prefix $PREFIX..."
 
@@ -46,10 +43,10 @@ jobs:
           latest=$(echo "$releases" | grep "^${PREFIX}\." | sort -V | tail -n1 || true)
 
           if [ -z "$latest" ]; then
-            NEXT="v${PREFIX}.1"
+            NEXT="${PREFIX}.1"
           else
             num=$(echo "$latest" | awk -F. '{print $3}')
-            NEXT="v${PREFIX}.$((num+1))"
+            NEXT="${PREFIX}.$((num+1))"
           fi
 
           echo "version=$NEXT" >> $GITHUB_OUTPUT
