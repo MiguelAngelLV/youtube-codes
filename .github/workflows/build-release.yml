@@ -1,15 +1,15 @@
 name: Build & Release Compose App
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to release'
         required: true
         default: 'main'
-      version:
-        description: 'Optional explicit version. If empty, it will be auto-calculated.'
-        required: false
 
 permissions:
   contents: write
@@ -26,42 +26,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine release version
+      - name: Determine release version (YYYY.MM.increment)
         id: determine_version
         run: |
-          # If user provided a version input, use it.
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            ver="${{ github.event.inputs.version }}"
+          YEAR=$(date +'%Y')
+          MONTH=$(date +'%m')
+          PREFIX="${YEAR}.${MONTH}"
+
+          echo "Checking existing releases with prefix $PREFIX..."
+
+          # Obtener todas las versiones existentes de GitHub Releases
+          releases=$(gh release list --limit 1000 --json tagName -q '.[].tagName' || true)
+
+          # Filtrar las que coincidan con el prefijo actual
+          latest=$(echo "$releases" | grep "^${PREFIX}\." | sort -V | tail -n1 || true)
+
+          if [ -z "$latest" ]; then
+            NEXT="${PREFIX}.1"
           else
-            ver=""
-            # 1) Try gradle.properties
-            if [ -f gradle.properties ]; then
-              ver=$(grep -E '^version\s*=' gradle.properties | head -n1 | cut -d'=' -f2- | tr -d '[:space:]')
-            fi
-
-            # 2) Try Gradle properties
-            if [ -z "$ver" ]; then
-              ver=$(./gradlew -q properties --no-daemon 2>/dev/null | sed -n 's/^version: //p' | tr -d '[:space:]' || true)
-            fi
-
-            # 3) Try latest git tag
-            if [ -z "$ver" ]; then
-              git fetch --tags --prune
-              ver=$(git describe --tags --abbrev=0 2>/dev/null || true)
-            fi
-
-            # 4) Fallback to short SHA
-            if [ -z "$ver" ]; then
-              short=$(git rev-parse --short HEAD)
-              ver="0.0.0-${short}"
-            fi
+            num=$(echo "$latest" | awk -F. '{print $3}')
+            NEXT="${PREFIX}.$((num+1))"
           fi
 
-          echo "version=$ver" >> $GITHUB_OUTPUT
-          echo "RELEASE_VERSION=$ver" >> $GITHUB_ENV
-          echo "Determined version: $ver"
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "RELEASE_VERSION=$NEXT" >> $GITHUB_ENV
+          echo "Determined version: $NEXT"
 
-      - name: Create GitHub release (single release)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
@@ -118,11 +112,10 @@ jobs:
           mkdir -p artifacts
           FILE=$(find composeApp/build/compose/binaries -type f -name "*.${{ matrix.artifact_ext }}" | head -n 1)
           if [ -z "$FILE" ]; then
-            echo "No artifact found for ext ${{ matrix.artifact_ext }} (looked for composeApp/build/compose/binaries)."
-            ls -la composeApp/build/compose || true
+            echo "No artifact found for ext ${{ matrix.artifact_ext }}"
             exit 1
           fi
-          cp "$FILE" "artifacts/myapp-${{ needs.create_release.outputs.release_version }}-${{ matrix.os }}.${{ matrix.artifact_ext }}"
+          cp "$FILE" "artifacts/youtube-codes-${{ needs.create_release.outputs.release_version }}-${{ matrix.os }}.${{ matrix.artifact_ext }}"
           ls -la artifacts
 
       - name: Upload artifact to the release
