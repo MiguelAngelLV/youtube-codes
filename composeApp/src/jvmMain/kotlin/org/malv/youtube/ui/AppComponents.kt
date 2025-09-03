@@ -15,7 +15,7 @@ fun App() {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.padding(16.dp)) {
                 ButtonsUI()
-                CodesUI()
+                CodesUI(modifier = Modifier.weight(1f))
                 LoggerUI()
             }
         }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -69,7 +70,7 @@ fun CompactButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @
 fun CompactTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    maxLines: Int = 1,
+    maxLines: Int = Int.MAX_VALUE,
     label: @Composable (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
@@ -81,7 +82,9 @@ fun CompactTextField(
         onValueChange = onValueChange,
         maxLines = maxLines,
         textStyle = MaterialTheme.typography.bodySmall,
-        modifier = modifier,
+        modifier = modifier
+            .padding(LocalTextFieldPadding.current)
+            .sizeIn(minHeight = 24.dp),
         label = label,
         enabled = enabled,
         readOnly = readOnly,
