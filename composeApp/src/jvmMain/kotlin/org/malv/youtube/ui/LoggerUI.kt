@@ -2,7 +2,9 @@ package org.malv.youtube.ui
 
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.malv.youtube.services.LoggerService
 import org.malv.youtube.viewmodels.LoggerViewModel
@@ -27,8 +30,9 @@ fun LoggerUI(viewmodel: LoggerViewModel = viewModel { LoggerViewModel(LoggerServ
     val log by viewmodel.log.collectAsState()
     val scrollState = rememberScrollState()
 
-    CompactCard {
-
+    CompactCard(
+        modifier = Modifier.height(200.dp)
+    ) {
         OutlinedTextField(
             value = log,
             textStyle = MaterialTheme.typography.bodySmall,

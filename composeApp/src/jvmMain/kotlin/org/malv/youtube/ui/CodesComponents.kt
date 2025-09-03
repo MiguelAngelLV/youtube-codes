@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
@@ -46,18 +48,15 @@ fun CodesInput(codes: String, onCodeChanges: (String) -> Unit) {
 
 @Composable
 fun CodesPreview(codes: String) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(8.dp)
-    ) {
-        CompactTextField(
-            value = codes,
-            label = { Text("Resultado") },
-            onValueChange = {},
-            readOnly = true,
-            modifier = Modifier.fillMaxSize(),
-            maxLines = Int.MAX_VALUE,
-        )
-    }
+
+    CompactTextField(
+        value = codes,
+        label = { Text("Resultado") },
+        onValueChange = {},
+        modifier = Modifier.sizeIn(minHeight = 400.dp).fillMaxSize(),
+        maxLines = Int.MAX_VALUE,
+    )
+
 }
 
 
@@ -107,7 +106,12 @@ fun Languages(
     codes: String,
 ) {
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
-    CompactCard(modifier = Modifier.fillMaxWidth(0.5f).height(400.dp)) {
+    CompactCard(
+        modifier =
+            Modifier.fillMaxWidth(0.5f)
+                .fillMaxHeight()
+                .sizeIn(minHeight = 800.dp)
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(8.dp)) {
             TabRow(selectedTabIndex = tabIndex) {
                 languages.forEachIndexed { index, language ->
@@ -119,9 +123,7 @@ fun Languages(
                 }
             }
 
-
             val language = languages[tabIndex]
-
             RangeCodes(
                 language.start,
                 language.end,
@@ -134,16 +136,15 @@ fun Languages(
     }
 }
 
-
 @Composable
 fun CodesUI(
-    codesViewModel: CodesViewModel = viewModel { CodesViewModel(ConfigurationService.instance) }
+    codesViewModel: CodesViewModel = viewModel { CodesViewModel(ConfigurationService.instance) },
+    modifier: Modifier = Modifier
 ) {
     val codes by codesViewModel.codes.collectAsState()
     val languages by codesViewModel.languages.collectAsState()
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.height(400.dp)) {
-
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier.fillMaxHeight()) {
         Languages(
             languages = languages,
             codes = codes,
@@ -152,7 +153,7 @@ fun CodesUI(
             }
         )
 
-        CompactCard(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
+        CompactCard(modifier = Modifier.fillMaxSize()) {
             CodesInput(codes, codesViewModel::updateCodes)
         }
     }
