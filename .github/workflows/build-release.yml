@@ -10,6 +10,10 @@ on:
         description: 'Branch to release'
         required: true
         default: 'main'
+      boolean:
+        description: 'Is this a pre-release?'
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -60,7 +64,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_VERSION }}
-          prerelease: ${{ github.event.inputs.branch != 'main' }}
+          prerelease: ${{ github.event.inputs.boolean  || 'false' }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,6 +127,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
-          tag_name: ${{ env.RELEASE_VERSION }}
+          tag_name: ${{ needs.create_release.outputs.release_version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
